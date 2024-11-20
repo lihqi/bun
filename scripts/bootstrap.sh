@@ -371,9 +371,6 @@ check_user() {
 package_manager() {
 	case "$pm" in
 	apt)
-		while ! sudo -n apt-get update -y; do
-			sleep 1
-		done
 		execute_sudo apt-get "$@"
 		;;
 	dnf)
@@ -589,35 +586,16 @@ install_nodejs_headers() {
 }
 
 install_bun() {
-	case "$os-$abi" in
-	linux-musl)
-		case "$arch" in
-		x64)
-			exe="$(download_file https://pub-61e0d0e2da4146a099e4545a59a9f0f7.r2.dev/bun-musl-x64)"
-			;;
-		aarch64)
-			exe="$(download_file https://pub-61e0d0e2da4146a099e4545a59a9f0f7.r2.dev/bun-musl-arm64)"
-			;;
-		esac
-		execute chmod +x "$exe"
-		execute mkdir -p "$home/.bun/bin"
-		execute mv "$exe" "$home/.bun/bin/bun"
-		execute ln -fs "$home/.bun/bin/bun" "$home/.bun/bin/bunx"
-		link_to_bin "$home/.bun/bin"
-		return
-		;;
-	esac
-
 	bash="$(require bash)"
 	script=$(download_file "https://bun.sh/install")
 
 	version="${1:-"latest"}"
 	case "$version" in
 	latest)
-		execute_as_user "$bash" "$script"
+		HOME="$home" execute_as_user "$bash" "$script"
 		;;
 	*)
-		execute_as_user "$bash" "$script" -s "$version"
+		HOME="$home" execute_as_user "$bash" "$script" -s "$version"
 		;;
 	esac
 
@@ -896,13 +874,28 @@ install_buildkite() {
 		return
 	fi
 
-	bash="$(require bash)"
-	script="$(download_file "https://raw.githubusercontent.com/buildkite/agent/main/install.sh")"
-	tmp_dir="$(execute dirname "$script")"
-	HOME="$tmp_dir" execute "$bash" "$script"
+	buildkite_version="3.87.0"
+	case "$os-$arch" in
+	linux-aarch64)
+		buildkite_filename="buildkite-agent-linux-arm64-$buildkite_version.tar.gz"
+		;;
+	linux-x64)
+		buildkite_filename="buildkite-agent-linux-amd64-$buildkite_version.tar.gz"
+		;;
+	darwin-aarch64)
+		buildkite_filename="buildkite-agent-darwin-arm64-$buildkite_version.tar.gz"
+		;;
+	darwin-x64)
+		buildkite_filename="buildkite-agent-darwin-amd64-$buildkite_version.tar.gz"
+		;;
+	esac
+	buildkite_url="https://github.com/buildkite/agent/releases/download/v$buildkite_version/$buildkite_filename"
+	buildkite_filepath="$(download_file "$buildkite_url" "$buildkite_filename")"
+	buildkite_tmpdir="$(dirname "$buildkite_filepath")"
 
-	out_dir="$tmp_dir/.buildkite-agent"
-	execute_sudo mv -f "$out_dir/bin/buildkite-agent" "/usr/bin/buildkite-agent"
+	execute tar -xzf "$buildkite_filepath" -C "$buildkite_tmpdir"
+	execute_sudo mv -f "$buildkite_tmpdir/buildkite-agent" "/usr/bin/buildkite-agent"
+	execute rm -rf "$buildkite_tmpdir"
 }
 
 install_chrome_dependencies() {
