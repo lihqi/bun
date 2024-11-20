@@ -871,7 +871,7 @@ export function writeFile(filename, content, options = {}) {
  * @returns {import("node:fs").Dirent[]}
  */
 export function readdir(cwd, options) {
-  const entries = [];
+  const results = [];
 
   /**
    * @param {string} filename
@@ -883,13 +883,13 @@ export function readdir(cwd, options) {
       if (entry.isDirectory() && options?.recursive) {
         readdirRecursive(path);
       } else {
-        entries.push(entry);
+        results.push(entry);
       }
     }
   }
 
   readdirRecursive(cwd || process.cwd());
-  return entries;
+  return results;
 }
 
 /**
