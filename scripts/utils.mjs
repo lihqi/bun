@@ -11,6 +11,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { connect } from "node:net";
@@ -827,14 +828,13 @@ export function readFile(filename, options = {}) {
     }
   }
 
-  const relativePath = relative(process.cwd(), absolutePath);
-  debugLog("$", "cat", relativePath);
+  debugLog("$", "cat", absolutePath);
 
   let content;
   try {
     content = readFileSync(absolutePath, "utf-8");
   } catch (cause) {
-    throw new Error(`Read failed: ${relativePath}`, { cause });
+    throw new Error(`Read failed: ${absolutePath}`, { cause });
   }
 
   if (options["cache"]) {
@@ -862,6 +862,34 @@ export function writeFile(filename, content, options = {}) {
   if (options["mode"]) {
     chmodSync(filename, options["mode"]);
   }
+}
+
+/**
+ * @param {string} [cwd]
+ * @param {object} [options]
+ * @param {boolean} [options.recursive]
+ * @returns {import("node:fs").Dirent[]}
+ */
+export function readdir(cwd, options) {
+  const entries = [];
+
+  /**
+   * @param {string} filename
+   */
+  function readdirRecursive(filename) {
+    const entries = readdirSync(filename, { withFileTypes: true, encoding: "utf-8" });
+    for (const entry of entries) {
+      const path = join(filename, entry.name);
+      if (entry.isDirectory() && options?.recursive) {
+        readdirRecursive(path);
+      } else {
+        entries.push(entry);
+      }
+    }
+  }
+
+  readdirRecursive(cwd || process.cwd());
+  return entries;
 }
 
 /**
