@@ -412,6 +412,7 @@ function getPipeline(options) {
       },
       retry: getRetry(),
       command: command.filter(Boolean).join(" "),
+      timeout_in_minutes: os === "windows" ? 120 : 60,
     };
   };
 
